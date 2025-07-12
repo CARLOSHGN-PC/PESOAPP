@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Frotas Avançado</title>
+    
+    <!-- Bibliotecas para gerar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* CSS com design renovado e menu de navegação */
+        :root {
+            --cor-primaria: #2c62e0;
+            --cor-sucesso: #17a962;
+            --cor-erro: #dc3545;
+            --cor-fundo: #f0f2f5;
+            --cor-texto: #333;
+            --cor-texto-claro: #6c757d;
+            --cor-branco: #fff;
+            --cor-borda: #e9ecef;
+            --sombra-caixa: 0 6px 24px rgba(0,0,0,0.07);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            padding: 15px;
+            padding-bottom: 100px; /* Espaço para o menu fixo */
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .pagina {
+            display: none; /* Esconde as páginas por padrão */
+            flex-direction: column;
+            gap: 20px;
+        }
+        .pagina.active {
+            display: flex; /* Mostra a página ativa */
+        }
+
+        .card {
+            background-color: var(--cor-branco);
+            border-radius: 16px;
+            box-shadow: var(--sombra-caixa);
+            padding: 25px;
+            border: 1px solid var(--cor-borda);
+        }
+        
+        .card-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--cor-borda);
+        }
+        
+        .card-header h2, .card-header h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--cor-primaria);
+            text-align: center;
+        }
+
+        .grid-inputs {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .grid-inputs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid-inputs .full-width {
+                grid-column: 1 / -1;
+            }
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.9em;
+            color: var(--cor-texto-claro);
+        }
+
+        .input-group input {
+            padding: 14px;
+            border: 1px solid var(--cor-borda);
+            border-radius: 10px;
+            font-size: 1em;
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--cor-primaria);
+            box-shadow: 0 0 0 3px rgba(44, 98, 224, 0.2);
+            background-color: var(--cor-branco);
+        }
+        
+        .botoes-acao {
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }
+        
+        @media (min-width: 768px) {
+            .botoes-acao {
+                 flex-direction: row;
+            }
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-adicionar {
+            background-color: var(--cor-sucesso);
+            color: white;
+        }
+        
+        .btn-pdf {
+            background-color: var(--cor-primaria);
+            color: white;
+        }
+        
+        /* Estilos do Painel de Resumo ATUALIZADOS */
+        .resumo-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        @media (min-width: 768px) {
+            .resumo-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        .resumo-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .resumo-icone {
+            flex-shrink: 0;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .resumo-icone svg {
+            width: 24px;
+            height: 24px;
+        }
+        .resumo-texto h4 {
+            font-weight: 500;
+            color: var(--cor-texto-claro);
+            font-size: 0.9rem;
+            margin: 0 0 4px 0;
+        }
+        .resumo-texto p {
+            font-weight: 700;
+            color: var(--cor-texto);
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        /* ESTILOS ATUALIZADOS PARA A TABELA DE RELATÓRIO */
+        #relatorio {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 15px; /* Espaço vertical entre os blocos de fazenda */
+        }
+
+        #relatorio tbody {
+            background-color: var(--cor-branco);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            overflow: hidden; /* Garante que o border-radius funcione */
+        }
+
+        #relatorio th, #relatorio td {
+            padding: 14px 16px;
+            text-align: left;
+            border: none;
+            vertical-align: middle;
+        }
+
+        .header-fazenda td {
+            background-color: #343a40;
+            color: var(--cor-branco);
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .header-dados th {
+            font-weight: 600;
+            font-size: 0.9em;
+            color: var(--cor-texto-claro);
+            padding-top: 10px;
+            padding-bottom: 10px;
+            background-color: var(--cor-branco);
+            border-bottom: 1px solid var(--cor-borda);
+        }
+
+        .linha-dados td {
+            color: var(--cor-texto);
+            font-size: 0.95em;
+            border-bottom: 1px solid #f1f3f5;
+        }
+
+        .linha-dados:last-of-type td {
+            border-bottom: none;
+        }
+
+        .linha-subtotal td {
+            background-color: #f8f9fa;
+            font-weight: 700;
+            font-size: 1.05em;
+            color: #212529;
+            border-top: 1px solid var(--cor-borda);
+        }
+        
+        .btn-excluir {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+        .btn-excluir:hover {
+            background-color: #ffebee;
+        }
+        .btn-excluir svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--cor-erro);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        /* Menu de Navegação Fixo */
+        .menu-navegacao {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            background-color: var(--cor-branco);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            border-top: 1px solid var(--cor-borda);
+            z-index: 100;
+        }
+        .nav-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 0;
+            gap: 4px;
+            font-size: 0.8rem;
+            color: var(--cor-texto-claro);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .nav-btn svg {
+            width: 24px;
+            height: 24px;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .nav-btn.active {
+            color: var(--cor-primaria);
+        }
+        
+        /* Modal de Alerta Customizado */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-box {
+            background: var(--cor-branco);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 90%;
+            width: 350px;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal-box {
+            transform: scale(1);
+        }
+        .modal-box p {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+        .modal-botoes {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .modal-botoes .btn {
+            min-width: 100px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- PÁGINA DE LANÇAMENTO -->
+        <div id="pagina-lancamento" class="pagina active">
+            <div class="card">
+                <div class="card-header"><h2>Lançamento de Carga</h2></div>
+                <div class="formulario">
+                    <div class="grid-inputs">
+                        <div class="input-group full-width"><label for="fazendaInput">Fazenda</label><input type="text" id="fazendaInput" placeholder="Digite o nome da fazenda"></div>
+                        <div class="input-group"><label for="frotaInput">Frota</label><input type="text" id="frotaInput" placeholder="Nº do veículo"></div>
+                        <div class="input-group"><label for="pesoInput">Peso Líquido (Kg)</label><input type="number" id="pesoInput" placeholder="Ex: 85.50"></div>
+                        <div class="input-group full-width"><label for="dataInput">Data do Lançamento</label><input type="date" id="dataInput"></div>
+                    </div>
+                    <div class="botoes-acao"><button class="btn btn-adicionar" id="addBtn">Adicionar Lançamento</button></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PÁGINA DE RELATÓRIO -->
+        <div id="pagina-relatorio" class="pagina">
+            <div class="card">
+                <div class="card-header"><h3>Filtros e Ações</h3></div>
+                <div class="grid-inputs">
+                    <div class="input-group"><label for="filtroDataInput">Filtrar por data:</label><input type="date" id="filtroDataInput"></div>
+                </div>
+                 <div class="botoes-acao" style="margin-top: 10px;"><button class="btn btn-pdf" id="pdfBtn">Exportar para PDF</button></div>
+            </div>
+            <div class="card" id="resumo-container" style="display: none;">
+                <div class="card-header"><h3>Resumo do Período</h3></div>
+                <div class="resumo-grid">
+                    <div class="resumo-item">
+                        <div class="resumo-icone" style="background-color: #e6f0ff;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--cor-primaria)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                        </div>
+                        <div class="resumo-texto">
+                            <h4>Total Geral (Kg)</h4>
+                            <p id="resumo-total-geral">0,00</p>
+                        </div>
+                    </div>
+                    <div class="resumo-item">
+                        <div class="resumo-icone" style="background-color: #e8f5e9;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--cor-sucesso)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="23 21 17 14 14 17 17 21"></polyline></svg>
+                        </div>
+                        <div class="resumo-texto">
+                            <h4>Nº de Cargas</h4>
+                            <p id="resumo-num-cargas">0</p>
+                        </div>
+                    </div>
+                    <div class="resumo-item">
+                        <div class="resumo-icone" style="background-color: #fff0f6;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#d63384" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        </div>
+                        <div class="resumo-texto">
+                            <h4>Peso Médio (Kg)</h4>
+                            <p id="resumo-peso-medio">0,00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card" id="relatorio-container">
+                <div class="card-header"><h3>Relatório Detalhado</h3></div>
+                <table id="relatorio"></table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MENU DE NAVEGAÇÃO -->
+    <nav class="menu-navegacao">
+        <button class="nav-btn active" data-pagina="pagina-lancamento">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Lançar
+        </button>
+        <button class="nav-btn" data-pagina="pagina-relatorio">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            Relatório
+        </button>
+    </nav>
+
+    <!-- MODAL DE ALERTA -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-box">
+            <p id="modal-texto"></p>
+            <div class="modal-botoes" id="modal-botoes"></div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const { jsPDF } = window.jspdf;
+
+            // Seletores de elementos
+            const fazendaInput = document.getElementById('fazendaInput');
+            const frotaInput = document.getElementById('frotaInput');
+            const pesoInput = document.getElementById('pesoInput');
+            const dataInput = document.getElementById('dataInput');
+            const addBtn = document.getElementById('addBtn');
+            const pdfBtn = document.getElementById('pdfBtn');
+            const relatorioTable = document.getElementById('relatorio');
+            const filtroDataInput = document.getElementById('filtroDataInput');
+            
+            const resumoContainer = document.getElementById('resumo-container');
+            const resumoTotalGeral = document.getElementById('resumo-total-geral');
+            const resumoNumCargas = document.getElementById('resumo-num-cargas');
+            const resumoPesoMedio = document.getElementById('resumo-peso-medio');
+            
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const paginas = document.querySelectorAll('.pagina');
+
+            const modal = document.getElementById('modal');
+            const modalTexto = document.getElementById('modal-texto');
+            const modalBotoes = document.getElementById('modal-botoes');
+
+            let lancamentos = [];
+
+            // --- LÓGICA DO MODAL (ALERTAS) ---
+            function mostrarModal(texto, tipo = 'info', idParaExcluir = null) {
+                modalTexto.textContent = texto;
+                modalBotoes.innerHTML = ''; // Limpa botões antigos
+
+                if (tipo === 'confirm') {
+                    const btnSim = document.createElement('button');
+                    btnSim.className = 'btn btn-adicionar';
+                    btnSim.textContent = 'Sim';
+                    btnSim.onclick = () => {
+                        excluirLancamento(idParaExcluir);
+                        fecharModal();
+                    };
+
+                    const btnNao = document.createElement('button');
+                    btnNao.className = 'btn';
+                    btnNao.textContent = 'Não';
+                    btnNao.style.backgroundColor = '#6c757d';
+                    btnNao.style.color = 'white';
+                    btnNao.onclick = fecharModal;
+
+                    modalBotoes.appendChild(btnNao);
+                    modalBotoes.appendChild(btnSim);
+                } else {
+                    const btnOk = document.createElement('button');
+                    btnOk.className = 'btn btn-adicionar';
+                    btnOk.textContent = 'OK';
+                    btnOk.onclick = fecharModal;
+                    modalBotoes.appendChild(btnOk);
+                }
+                modal.classList.add('active');
+            }
+
+            function fecharModal() {
+                modal.classList.remove('active');
+            }
+
+            // --- LÓGICA DE NAVEGAÇÃO ---
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idPagina = btn.dataset.pagina;
+                    paginas.forEach(p => p.classList.remove('active'));
+                    document.getElementById(idPagina).classList.add('active');
+                    navButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // --- LÓGICA DO APLICATIVO ---
+            function getFormattedDate(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            function renderizarTudo() {
+                const filtroData = filtroDataInput.value;
+                let lancamentosParaRenderizar = lancamentos;
+
+                if (filtroData) {
+                    lancamentosParaRenderizar = lancamentos.filter(item => item.data === filtroData);
+                }
+                
+                renderizarResumo(lancamentosParaRenderizar);
+                renderizarRelatorio(lancamentosParaRenderizar);
+            }
+
+            function renderizarResumo(dados) {
+                if (dados.length === 0) {
+                    resumoContainer.style.display = 'none';
+                    return;
+                }
+                const totalGeral = dados.reduce((acc, item) => acc + item.peso, 0);
+                const numCargas = dados.length;
+                const pesoMedio = numCargas > 0 ? totalGeral / numCargas : 0;
+                resumoTotalGeral.textContent = totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                resumoNumCargas.textContent = numCargas;
+                resumoPesoMedio.textContent = pesoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                resumoContainer.style.display = 'block';
+            }
+
+            function renderizarRelatorio(dados) {
+                relatorioTable.innerHTML = '';
+                if (dados.length === 0) {
+                    relatorioTable.innerHTML = '<tbody><tr><td colspan="3" style="text-align:center; padding: 20px;">Nenhum lançamento para a data selecionada.</td></tr></tbody>';
+                    return;
+                }
+                const fazendas = dados.reduce((acc, item) => {
+                    const nomeFazenda = item.fazenda.trim().toUpperCase();
+                    if (!acc[nomeFazenda]) acc[nomeFazenda] = [];
+                    acc[nomeFazenda].push(item);
+                    return acc;
+                }, {});
+                const fazendasOrdenadas = Object.keys(fazendas).sort();
+                let tableContent = '';
+                for (const nomeFazenda of fazendasOrdenadas) {
+                    const itens = fazendas[nomeFazenda];
+                    let subtotalFazenda = 0;
+                    
+                    tableContent += `<tbody>`;
+                    tableContent += `<tr class="header-fazenda"><td colspan="3">FAZENDA ${nomeFazenda}</td></tr>`;
+                    tableContent += `<tr class="header-dados"><th>FROTA</th><th>PESO LÍQUIDO</th><th>AÇÃO</th></tr>`;
+                    
+                    itens.forEach(item => {
+                        tableContent += `<tr class="linha-dados">
+                            <td>${item.frota}</td>
+                            <td>${item.peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td>
+                                <button class="btn-excluir" data-id="${item.id}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                </button>
+                            </td>
+                        </tr>`;
+                        subtotalFazenda += item.peso;
+                    });
+                    
+                    tableContent += `<tr class="linha-subtotal"><td colspan="2">SUBTOTAL</td><td>${subtotalFazenda.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+                    tableContent += `</tbody>`;
+                }
+                relatorioTable.innerHTML = tableContent;
+            }
+            
+            function adicionarLancamento() {
+                const fazenda = fazendaInput.value.trim();
+                const frota = frotaInput.value.trim();
+                const peso = parseFloat(pesoInput.value.replace(',', '.'));
+                const data = dataInput.value;
+                if (!fazenda || !frota || isNaN(peso) || !data) {
+                    mostrarModal('Por favor, preencha todos os campos corretamente.');
+                    return;
+                }
+                lancamentos.push({ id: crypto.randomUUID(), fazenda, frota, peso, data });
+                fazendaInput.value = '';
+                frotaInput.value = '';
+                pesoInput.value = '';
+                fazendaInput.focus();
+                renderizarTudo();
+                mostrarModal('Lançamento adicionado com sucesso!');
+            }
+
+            function excluirLancamento(id) {
+                lancamentos = lancamentos.filter(item => item.id !== id);
+                renderizarTudo();
+            }
+
+            function gerarPDF() {
+                const filtroData = filtroDataInput.value;
+                let dadosParaPdf = lancamentos;
+                if (filtroData) {
+                    dadosParaPdf = lancamentos.filter(item => item.data === filtroData);
+                }
+
+                if (dadosParaPdf.length === 0) {
+                    mostrarModal('Não há dados para gerar o PDF.');
+                    return;
+                }
+
+                let totalGeral = 0;
+                const fazendas = dadosParaPdf.reduce((acc, item) => {
+                    const nomeFazenda = item.fazenda.trim().toUpperCase();
+                    if (!acc[nomeFazenda]) acc[nomeFazenda] = [];
+                    acc[nomeFazenda].push(item);
+                    return acc;
+                }, {});
+                const fazendasOrdenadas = Object.keys(fazendas).sort();
+
+                const doc = new jsPDF();
+                let y = 15;
+
+                doc.setFontSize(16);
+                doc.text("Relatório de Pesagem", 105, y, { align: "center" });
+                y += 7;
+                doc.setFontSize(10);
+                doc.text(`Data: ${new Date(filtroData + 'T00:00:00').toLocaleDateString('pt-BR')}`, 105, y, { align: "center" });
+                y += 10;
+
+                doc.setFontSize(10);
+
+                for (const nomeFazenda of fazendasOrdenadas) {
+                    if (y > 270) { // Adiciona nova página se o conteúdo estiver no final
+                        doc.addPage();
+                        y = 15;
+                    }
+
+                    const itens = fazendas[nomeFazenda];
+                    let subtotalFazenda = 0;
+                    
+                    doc.setFillColor(233, 236, 239); // Cinza claro para o header da fazenda
+                    doc.rect(10, y, 190, 8, 'F');
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`FAZENDA: ${nomeFazenda}`, 12, y + 6);
+                    y += 8;
+
+                    doc.setFont(undefined, 'bold');
+                    doc.text("FROTA", 12, y + 6);
+                    doc.text("PESO LÍQUIDO", 150, y + 6);
+                    y += 8;
+                    doc.setLineWidth(0.1);
+                    doc.line(10, y, 200, y);
+                    y += 2;
+                    doc.setFont(undefined, 'normal');
+
+                    itens.forEach(item => {
+                        if (y > 280) {
+                            doc.addPage();
+                            y = 15;
+                        }
+                        y += 6;
+                        doc.text(item.frota, 12, y);
+                        doc.text(item.peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 150, y);
+                        subtotalFazenda += item.peso;
+                    });
+
+                    y += 2;
+                    doc.line(10, y, 200, y);
+                    y += 6;
+                    doc.setFont(undefined, 'bold');
+                    doc.text("TOTAL FAZENDA", 12, y);
+                    doc.text(subtotalFazenda.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 150, y);
+                    y += 10;
+                    totalGeral += subtotalFazenda;
+                }
+
+                if (y > 270) {
+                    doc.addPage();
+                    y = 15;
+                }
+                
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.setFillColor(220, 220, 220);
+                doc.rect(10, y, 190, 10, 'F');
+                doc.text("TOTAL GERAL", 12, y + 7);
+                doc.text(totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 150, y + 7);
+
+                doc.save('relatorio-pesagem.pdf');
+            }
+
+            // Event Listeners
+            addBtn.addEventListener('click', adicionarLancamento);
+            pdfBtn.addEventListener('click', gerarPDF);
+            filtroDataInput.addEventListener('input', renderizarTudo);
+
+            relatorioTable.addEventListener('click', (event) => {
+                const btnExcluir = event.target.closest('.btn-excluir');
+                if (btnExcluir) {
+                    const idParaExcluir = btnExcluir.dataset.id;
+                    mostrarModal('Tem certeza que deseja excluir este lançamento?', 'confirm', idParaExcluir);
+                }
+            });
+
+            // Inicialização
+            const hoje = getFormattedDate(new Date());
+            dataInput.value = hoje;
+            filtroDataInput.value = hoje;
+            renderizarTudo();
+        });
+    </script>
+
+</body>
+</html>
