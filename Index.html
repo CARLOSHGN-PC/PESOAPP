@@ -3,9 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Frotas Avançado</title>
-    
-    <!-- Bibliotecas para gerar PDF -->
+    <title>Controle de Frotas Avançado com Firebase</title>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, where, doc, deleteDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Your web app's Firebase configuration from your Firebase project
+        const firebaseConfig = {
+          apiKey: "AIzaSyCl5Jlp4SprCy3W11t5vzZREp5foH1Inho",
+          authDomain: "pesagemapp.firebaseapp.com",
+          projectId: "pesagemapp",
+          storageBucket: "pesagemapp.appspot.com", // Corrected storageBucket domain
+          messagingSenderId: "730759289039",
+          appId: "1:730759289039:web:84adabddde3568c0743fba",
+          measurementId: "G-XGZKMSMK0S"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // Enable debug logging for Firestore if needed
+        // setLogLevel('debug');
+
+        // --- GLOBAL VARIABLES ---
+        window.db = db;
+        window.auth = auth;
+
+        // --- AUTHENTICATION ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in.
+                console.log("User is signed in with UID:", user.uid);
+                // The main app logic will now run because the user is authenticated.
+                initializeAppLogic();
+            } else {
+                // User is signed out. Sign in anonymously.
+                console.log("User is not signed in. Signing in anonymously...");
+                signInAnonymously(auth).catch((error) => {
+                    console.error("Anonymous sign-in failed:", error);
+                    document.body.innerHTML = "<h1>Erro de Autenticação</h1><p>Não foi possível conectar ao serviço. Por favor, recarregue a página.</p>";
+                });
+            }
+        });
+
+    </script>
+
+    <!-- Libraries for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -365,7 +414,6 @@
         .modal-botoes .btn {
             min-width: 100px;
         }
-
     </style>
 </head>
 <body>
@@ -455,9 +503,11 @@
         </div>
     </div>
     
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+    <script type="module">
+        // This script runs after the Firebase SDKs are loaded and initialized.
+        function initializeAppLogic() {
             const { jsPDF } = window.jspdf;
+            const { getFirestore, collection, addDoc, onSnapshot, query, where, doc, deleteDoc, serverTimestamp } = window.firebase.firestore;
 
             // Seletores de elementos
             const fazendaInput = document.getElementById('fazendaInput');
@@ -481,7 +531,8 @@
             const modalTexto = document.getElementById('modal-texto');
             const modalBotoes = document.getElementById('modal-botoes');
 
-            let lancamentos = [];
+            let lancamentos = []; // This will hold the data from Firestore
+            let unsubscribe = null; // To detach the Firestore listener
 
             // --- LÓGICA DO MODAL (ALERTAS) ---
             function mostrarModal(texto, tipo = 'info', idParaExcluir = null) {
@@ -540,6 +591,9 @@
             }
 
             function renderizarTudo() {
+                // The rendering is now triggered by the Firestore listener,
+                // which updates the `lancamentos` array.
+                // This function just needs to filter and display the current local data.
                 const filtroData = filtroDataInput.value;
                 let lancamentosParaRenderizar = lancamentos;
 
@@ -606,7 +660,7 @@
                 relatorioTable.innerHTML = tableContent;
             }
             
-            function adicionarLancamento() {
+            async function adicionarLancamento() {
                 const fazenda = fazendaInput.value.trim();
                 const frota = frotaInput.value.trim();
                 const peso = parseFloat(pesoInput.value.replace(',', '.'));
@@ -615,19 +669,69 @@
                     mostrarModal('Por favor, preencha todos os campos corretamente.');
                     return;
                 }
-                lancamentos.push({ id: crypto.randomUUID(), fazenda, frota, peso, data });
-                fazendaInput.value = '';
-                frotaInput.value = '';
-                pesoInput.value = '';
-                fazendaInput.focus();
-                renderizarTudo();
-                mostrarModal('Lançamento adicionado com sucesso!');
+                
+                try {
+                    // Add a new document with a generated id.
+                    const docRef = await addDoc(collection(window.db, "lancamentos"), {
+                        fazenda: fazenda,
+                        frota: frota,
+                        peso: peso,
+                        data: data,
+                        createdAt: serverTimestamp() // Adds a server-side timestamp
+                    });
+                    console.log("Document written with ID: ", docRef.id);
+                    
+                    fazendaInput.value = '';
+                    frotaInput.value = '';
+                    pesoInput.value = '';
+                    fazendaInput.focus();
+                    mostrarModal('Lançamento adicionado com sucesso!');
+                } catch (e) {
+                    console.error("Error adding document: ", e);
+                    mostrarModal('Erro ao salvar o lançamento. Tente novamente.');
+                }
             }
 
-            function excluirLancamento(id) {
-                lancamentos = lancamentos.filter(item => item.id !== id);
-                renderizarTudo();
+            async function excluirLancamento(id) {
+                try {
+                    await deleteDoc(doc(window.db, "lancamentos", id));
+                    console.log("Document successfully deleted!");
+                    mostrarModal('Lançamento excluído com sucesso.');
+                } catch (error) {
+                    console.error("Error removing document: ", error);
+                    mostrarModal('Erro ao excluir o lançamento. Tente novamente.');
+                }
             }
+            
+            function listenToLancamentos() {
+                // Detach any existing listener
+                if (unsubscribe) {
+                    unsubscribe();
+                }
+
+                const q = query(collection(window.db, "lancamentos"));
+                
+                unsubscribe = onSnapshot(q, (querySnapshot) => {
+                    console.log("Received Firestore update.");
+                    lancamentos = [];
+                    querySnapshot.forEach((doc) => {
+                        lancamentos.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    // Sort by creation date
+                    lancamentos.sort((a, b) => {
+                        const timeA = a.createdAt ? a.createdAt.toMillis() : 0;
+                        const timeB = b.createdAt ? b.createdAt.toMillis() : 0;
+                        return timeA - timeB;
+                    });
+
+                    // Re-render the UI with the new data
+                    renderizarTudo();
+                }, (error) => {
+                    console.error("Error listening to lancamentos:", error);
+                });
+            }
+
 
             function gerarPDF() {
                 const filtroData = filtroDataInput.value;
@@ -739,8 +843,8 @@
             const hoje = getFormattedDate(new Date());
             dataInput.value = hoje;
             filtroDataInput.value = hoje;
-            renderizarTudo();
-        });
+            listenToLancamentos(); // Start listening for real-time updates
+        }
     </script>
 
 </body>
